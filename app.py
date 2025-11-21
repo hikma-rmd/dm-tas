@@ -1,113 +1,126 @@
 import streamlit as st
-import pickle
+import pandas as pd
 import numpy as np
+import pickle
 
-with open("best_model.pkl", "rb") as f:
-    model = pickle.load(f)
+# ============================================
+# 1. LOAD MODEL & SCALER
+# ============================================
+@st.cache_resource
+def load_models():
+    with open("svm_model.pkl", "rb") as f:
+        svm_model = pickle.load(f)
 
-with open("scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
+    with open("rf_model.pkl", "rb") as f:
+        rf_model = pickle.load(f)
 
-st.title("Aplikasi Prediksi Tingkat Obesitas")
-st.write("""
-Selamat datang!  
-Aplikasi ini memprediksi **tingkat obesitas seseorang** berdasarkan data fisik dan kebiasaan hidup.
+    with open("voting_model.pkl", "rb") as f:
+        voting_model = pickle.load(f)
 
----
+    with open("scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
 
-### 🇮🇩 Bahasa Indonesia:
-Masukkan data pada form di bawah untuk mendapatkan hasil prediksi.
+    return svm_model, rf_model, voting_model, scaler
+
+svm_model, rf_model, voting_model, scaler = load_models()
+
+# Mapping prediksi label angka → kategori
+label_mapping = {
+    0: "Insufficient Weight",
+    1: "Normal Weight",
+    2: "Overweight Level I",
+    3: "Overweight Level II",
+    4: "Obesity Type I",
+    5: "Obesity Type II",
+    6: "Obesity Type III"
+}
+
+# ============================================
+# 2. UI Streamlit
+# ============================================
+st.title("🍏 Prediksi Obesitas Menggunakan Machine Learning")
+st.markdown("""
+Aplikasi ini memprediksi kategori obesitas seseorang berdasarkan data kebiasaan dan kondisi fisiknya.
+Anda dapat memilih model yang digunakan: **SVM, Random Forest, atau Voting Classifier**.
 """)
 
-st.subheader("📌 Input Data Pengguna")
+st.sidebar.header("📊 Pilih Model Machine Learning")
 
-gender = st.selectbox("Jenis Kelamin", ["Perempuan", "Laki-laki"])
-age = st.number_input("Umur", min_value=1, max_value=120)
-height = st.number_input("Tinggi Badan (meter)", min_value=1.0, max_value=2.5, step=0.01)
-weight = st.number_input("Berat Badan (kg)", min_value=20.0, max_value=200.0, step=0.1)
+model_choice = st.sidebar.selectbox(
+    "Pilih Model Prediksi:",
+    ("SVM", "Random Forest", "Voting Classifier")
+)
 
-family_overweight = st.selectbox("Riwayat keluarga obesitas", ["no", "yes"])
-FAVC = st.selectbox("Konsumsi makanan berkalori tinggi", ["no", "yes"])
-FCVC = st.number_input("Frekuensi makan sayur (1–3)", min_value=1, max_value=3)
-NCP = st.number_input("Jumlah makan utama (1–4)", min_value=1, max_value=4)
-CAEC = st.selectbox("Cemilan di antara makan", ["no", "Sometimes", "Frequently", "Always"])
-SMOKE = st.selectbox("Apakah merokok?", ["no", "yes"])
-CH2O = st.number_input("Konsumsi air (1–3)", min_value=1, max_value=3)
-SCC = st.selectbox("Memantau kalori?", ["no", "yes"])
-FAF = st.number_input("Aktivitas fisik (0–3)", min_value=0, max_value=3)
-TUE = st.number_input("Waktu pakai gadget (0–2)", min_value=0, max_value=2)
-CALC = st.selectbox("Konsumsi alkohol", ["no", "Sometimes", "Frequently", "Always"])
-MTRANS = st.selectbox("Transportasi", ["Walking", "Bike", "Motorbike", "Public", "Car"])
+# ============================================
+# 3. Input Form
+# ============================================
+st.header("📝 Input Data Pengguna")
 
-# =======================
-# LABEL ENCODING
-# =======================
-encode = {
-    "Perempuan": 0,
-    "Laki-laki": 1,
-    "no": 0, "yes": 1,
-    "Sometimes": 1, "Frequently": 2, "Always": 3,
-    "Walking": 0, "Bike": 1, "Motorbike": 2, "Public": 3, "Car": 4
-}
+with st.form("prediction_form"):
+    age = st.number_input("Usia", 10, 100, 25)
+    height = st.number_input("Tinggi Badan (m)", 1.20, 2.20, 1.60)
+    weight = st.number_input("Berat Badan (kg)", 30, 200, 60)
+    fh = st.selectbox("Riwayat Obesitas Keluarga", ("Tidak", "Ya"))
+    favc = st.selectbox("Konsumsi Makanan Tinggi Kalori", ("Tidak", "Ya"))
+    fcvc = st.slider("Frekuensi Konsumsi Sayur", 1, 3, 2)
+    ncp = st.slider("Jumlah Makan Utama Per Hari", 1, 4, 3)
+    caec = st.selectbox("Kebiasaan Ngemil", ("Tidak Pernah", "Kadang", "Sering", "Selalu"))
+    smoke = st.selectbox("Merokok", ("Tidak", "Ya"))
+    ch2o = st.slider("Konsumsi Air (L)", 1, 4, 2)
+    scc = st.selectbox("Pantau Kalori", ("Tidak", "Ya"))
+    faf = st.slider("Frekuensi Aktivitas Fisik", 0, 3, 1)
+    tue = st.slider("Waktu Layar / Gadget (jam)", 0, 3, 2)
+    calc = st.selectbox("Konsumsi Alkohol", ("Tidak Pernah", "Kadang", "Sering"))
+    mtrans = st.selectbox("Transportasi Utama", ("Kendaraan Umum", "Sepeda", "Mobil", "Berjalan Kaki"))
 
-input_data = np.array([[
-    encode[gender],
-    age,
-    height,
-    weight,
-    encode[family_overweight],
-    encode[FAVC],
-    FCVC,
-    NCP,
-    encode[CAEC],
-    encode[SMOKE],
-    CH2O,
-    encode[SCC],
-    FAF,
-    TUE,
-    encode[CALC],
-    encode[MTRANS]
-]])
+    submit = st.form_submit_button("Prediksi Sekarang")
 
-# =======================
-# NORMALISASI DATA
-# =======================
-scaled_input = scaler.transform(input_data)
+# ============================================
+# 4. Convert & Preprocess Input
+# ============================================
+def convert_text(value):
+    mapping = {
+        "Tidak": 0, "Ya": 1,
+        "Tidak Pernah": 0, "Kadang": 1, "Sering": 2, "Selalu": 3,
+        "Kendaraan Umum": 0, "Sepeda": 1, "Mobil": 2, "Berjalan Kaki": 3
+    }
+    return mapping.get(value, value)
 
-# =======================
-# LABEL INTERPRETATION
-# =======================
-labels = {
-    0: ("Insufficient Weight", "Kurang berat badan"),
-    1: ("Normal Weight", "Berat badan normal"),
-    2: ("Overweight Level I", "Kelebihan berat badan tingkat I"),
-    3: ("Overweight Level II", "Kelebihan berat badan tingkat II"),
-    4: ("Obesity Type I", "Obesitas tipe I"),
-    5: ("Obesity Type II", "Obesitas tipe II"),
-    6: ("Obesity Type III", "Obesitas tipe III"),
-}
+if submit:
 
-descriptions = {
-    0: "Berat badan di bawah normal. Perlu meningkatkan asupan makanan bergizi.",
-    1: "Berat badan dalam kategori sehat. Pertahankan pola hidup baik.",
-    2: "Mulai terjadi kelebihan berat. Disarankan olahraga rutin.",
-    3: "Kelebihan berat lebih serius. Pola makan perlu dikontrol.",
-    4: "Obesitas tingkat awal. Risiko kesehatan mulai meningkat.",
-    5: "Obesitas tingkat menengah. Risiko penyakit cukup tinggi.",
-    6: "Obesitas tingkat berat. Perlu penanganan medis dan perubahan gaya hidup.",
-}
+    input_data = np.array([[
+        age,
+        height,
+        weight,
+        convert_text(fh),
+        convert_text(favc),
+        fcvc,
+        ncp,
+        convert_text(caec),
+        convert_text(smoke),
+        ch2o,
+        convert_text(scc),
+        faf,
+        tue,
+        convert_text(calc),
+        convert_text(mtrans)
+    ]])
 
-if st.button("🔍 Prediksi / Predict"):
-    prediction = model.predict(scaled_input)
-    pred = int(prediction[0])
+    input_scaled = scaler.transform(input_data)
 
-    eng_label, indo_label = labels[pred]
+    # ============================================
+    # 5. Prediksi Berdasarkan Pilihan Model
+    # ============================================
+    if model_choice == "SVM":
+        prediction = svm_model.predict(input_scaled)[0]
+    elif model_choice == "Random Forest":
+        prediction = rf_model.predict(input_scaled)[0]
+    else:
+        prediction = voting_model.predict(input_scaled)[0]
 
-    st.success(f"""
-### 🎯 Hasil Prediksi / Prediction Result
-**Kategori (EN): {eng_label}**  
-**Kategori (ID): {indo_label}**
+    result_text = label_mapping.get(prediction, "Tidak diketahui")
 
-📌 **Penjelasan:**  
-{descriptions[pred]}
-""")
+    # ============================================
+    # 6. Tampilkan Hasil
+    # ============================================
+    st.success(f"📌 **Hasil Prediksi: {result_text}**")
