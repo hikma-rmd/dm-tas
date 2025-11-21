@@ -87,14 +87,42 @@ input_data = np.array([[
 scaled_input = scaler.transform(input_data)
 
 # =======================
+# LABEL INTERPRETATION
+# =======================
+labels = {
+    0: ("Insufficient Weight", "Kurang berat badan"),
+    1: ("Normal Weight", "Berat badan normal"),
+    2: ("Overweight Level I", "Kelebihan berat badan tingkat I"),
+    3: ("Overweight Level II", "Kelebihan berat badan tingkat II"),
+    4: ("Obesity Type I", "Obesitas tipe I"),
+    5: ("Obesity Type II", "Obesitas tipe II"),
+    6: ("Obesity Type III", "Obesitas tipe III"),
+}
+
+descriptions = {
+    0: "Berat badan di bawah normal. Perlu meningkatkan asupan makanan bergizi.",
+    1: "Berat badan dalam kategori sehat. Pertahankan pola hidup baik.",
+    2: "Mulai terjadi kelebihan berat. Disarankan olahraga rutin.",
+    3: "Kelebihan berat lebih serius. Pola makan perlu dikontrol.",
+    4: "Obesitas tingkat awal. Risiko kesehatan mulai meningkat.",
+    5: "Obesitas tingkat menengah. Risiko penyakit cukup tinggi.",
+    6: "Obesitas tingkat berat. Perlu penanganan medis dan perubahan gaya hidup.",
+}
+
+# =======================
 # PREDIKSI
 # =======================
 if st.button("🔍 Prediksi / Predict"):
     prediction = model.predict(scaled_input)
+    pred = int(prediction[0])
+
+    eng_label, indo_label = labels[pred]
 
     st.success(f"""
 ### 🎯 Hasil Prediksi / Prediction Result
-**{prediction[0]}**
+**Kategori (EN): {eng_label}**  
+**Kategori (ID): {indo_label}**
 
-Artinya: Tingkat obesitas diperkirakan berada pada kategori tersebut.
+📌 **Penjelasan:**  
+{descriptions[pred]}
 """)
