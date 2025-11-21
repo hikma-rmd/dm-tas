@@ -1,4 +1,6 @@
-streamlit
-scikit-learn
-numpy
 pandas
+numpy
+scikit-learn
+streamlit
+joblib
+imbalanced-learn
