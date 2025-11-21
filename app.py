@@ -2,18 +2,12 @@ import streamlit as st
 import pickle
 import numpy as np
 
-# =======================
-# LOAD MODEL & SCALER
-# =======================
 with open("best_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 with open("scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
-# =======================
-# JUDUL APLIKASI
-# =======================
 st.title("Aplikasi Prediksi Tingkat Obesitas")
 st.write("""
 Selamat datang!  
@@ -23,10 +17,7 @@ Aplikasi ini memprediksi **tingkat obesitas seseorang** berdasarkan data fisik d
 
 ### 🇮🇩 Bahasa Indonesia:
 Masukkan data pada form di bawah untuk mendapatkan hasil prediksi.
-
-# =======================
-# INPUT FORM USER
-# =======================
+""")
 
 st.subheader("📌 Input Data Pengguna")
 
@@ -49,10 +40,11 @@ CALC = st.selectbox("Konsumsi alkohol", ["no", "Sometimes", "Frequently", "Alway
 MTRANS = st.selectbox("Transportasi", ["Walking", "Bike", "Motorbike", "Public", "Car"])
 
 # =======================
-# LABEL ENCODING (sama seperti training)
+# LABEL ENCODING
 # =======================
 encode = {
-    "Female (Perempuan)": 0, "Male (Laki-laki)": 1,
+    "Perempuan": 0,
+    "Laki-laki": 1,
     "no": 0, "yes": 1,
     "Sometimes": 1, "Frequently": 2, "Always": 3,
     "Walking": 0, "Bike": 1, "Motorbike": 2, "Public": 3, "Car": 4
@@ -105,9 +97,6 @@ descriptions = {
     6: "Obesitas tingkat berat. Perlu penanganan medis dan perubahan gaya hidup.",
 }
 
-# =======================
-# PREDIKSI
-# =======================
 if st.button("🔍 Prediksi / Predict"):
     prediction = model.predict(scaled_input)
     pred = int(prediction[0])
