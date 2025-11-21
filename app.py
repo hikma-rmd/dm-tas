@@ -1,10 +1,9 @@
 import streamlit as st
-import pandas as pd
 import numpy as np
 import pickle
 
 # ============================================
-# 1. LOAD MODEL & SCALER
+# 1. LOAD MODEL
 # ============================================
 @st.cache_resource
 def load_models():
@@ -22,9 +21,9 @@ def load_models():
 
     return svm_model, rf_model, voting_model, scaler
 
+
 svm_model, rf_model, voting_model, scaler = load_models()
 
-# Mapping prediksi label angka → kategori
 label_mapping = {
     0: "Insufficient Weight",
     1: "Normal Weight",
@@ -36,27 +35,23 @@ label_mapping = {
 }
 
 # ============================================
-# 2. UI Streamlit
+# 2. UI
 # ============================================
 st.title("🍏 Prediksi Obesitas Menggunakan Machine Learning")
-st.markdown("""
-Aplikasi ini memprediksi kategori obesitas seseorang berdasarkan data kebiasaan dan kondisi fisiknya.
-Anda dapat memilih model yang digunakan: **SVM, Random Forest, atau Voting Classifier**.
-""")
 
 st.sidebar.header("📊 Pilih Model Machine Learning")
-
 model_choice = st.sidebar.selectbox(
     "Pilih Model Prediksi:",
     ("SVM", "Random Forest", "Voting Classifier")
 )
 
 # ============================================
-# 3. Input Form
+# 3. FORM INPUT
 # ============================================
 st.header("📝 Input Data Pengguna")
 
 with st.form("prediction_form"):
+    gender = st.selectbox("Jenis Kelamin", ("Perempuan", "Laki-laki"))
     age = st.number_input("Usia", 10, 100, 25)
     height = st.number_input("Tinggi Badan (m)", 1.20, 2.20, 1.60)
     weight = st.number_input("Berat Badan (kg)", 30, 200, 60)
@@ -76,10 +71,11 @@ with st.form("prediction_form"):
     submit = st.form_submit_button("Prediksi Sekarang")
 
 # ============================================
-# 4. Convert & Preprocess Input
+# 4. KONVERSI INPUT
 # ============================================
 def convert_text(value):
     mapping = {
+        "Perempuan": 1, "Laki-laki": 0,
         "Tidak": 0, "Ya": 1,
         "Tidak Pernah": 0, "Kadang": 1, "Sering": 2, "Selalu": 3,
         "Kendaraan Umum": 0, "Sepeda": 1, "Mobil": 2, "Berjalan Kaki": 3
@@ -89,6 +85,7 @@ def convert_text(value):
 if submit:
 
     input_data = np.array([[
+        convert_text(gender),
         age,
         height,
         weight,
@@ -108,9 +105,7 @@ if submit:
 
     input_scaled = scaler.transform(input_data)
 
-    # ============================================
-    # 5. Prediksi Berdasarkan Pilihan Model
-    # ============================================
+    # Prediksi
     if model_choice == "SVM":
         prediction = svm_model.predict(input_scaled)[0]
     elif model_choice == "Random Forest":
@@ -120,7 +115,4 @@ if submit:
 
     result_text = label_mapping.get(prediction, "Tidak diketahui")
 
-    # ============================================
-    # 6. Tampilkan Hasil
-    # ============================================
     st.success(f"📌 **Hasil Prediksi: {result_text}**")
